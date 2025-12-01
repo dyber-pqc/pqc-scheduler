@@ -1,0 +1,16 @@
+{
+  "throughput_mean": 711.5439951940101,
+  "throughput_std": 0.0,
+  "latency_mean_us": 1197.0023647294588,
+  "latency_std_us": 312.0314229243674,
+  "latency_p50_us": 1100.0,
+  "latency_p99_us": 2186.0,
+  "latency_max_us": 7917.0,
+  "sla_compliance": 0.0015430861723446895,
+  "security_score": 0.75,
+  "algorithm_switches": 0,
+  "fallback_events": 0,
+  "total_operations": 49900,
+  "successful_operations": 49900,
+  "failed_operations": 0
+}
