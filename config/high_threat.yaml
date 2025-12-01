@@ -1,29 +1,45 @@
 # PQC Scheduler High Threat Configuration
 # Version: 1.0.0
 # Copyright (c) 2025 Dyber, Inc.
-#
-# This configuration is optimized for elevated threat scenarios
-# where quantum attack capability is assessed as more likely.
 
-# Inherit from default configuration
-_base: config/default.yaml
-
-# Override scheduler settings for high threat
 scheduler:
   mdp:
-    gamma: 0.995                   # Higher discount for long-term security
-    recompute_interval_sec: 30     # More frequent policy updates
-    
+    gamma: 0.995
+    epsilon: 0.01
+    max_iterations: 100
+    recompute_interval_sec: 30
+    cache_policy: true
+
   weights:
-    security: 2.0                  # Double security weight
-    latency: 0.3                   # Reduce latency priority
-    cost: 0.2                      # Reduce cost priority
+    security: 2.0
+    latency: 0.3
+    cost: 0.2
     throughput: 0.3
 
-# Algorithm configuration for high threat
+  state_space:
+    threat_bins: 3
+    workload_bins:
+      - 1000
+      - 5000
+      - 10000
+      - 25000
+      - 50000
+      - 75000
+      - 100000
+      - 150000
+      - 200000
+      - 300000
+      - 500000
+    utilization_bins: 3
+
+  action_space:
+    algorithm_count: 14
+    migration_directions: 3
+    allocation_profiles: 10
+
 algorithms:
   enabled:
-    classical: []                  # Disable classical-only algorithms
+    classical: []
     post_quantum:
       - ML-KEM-768
       - ML-KEM-1024
@@ -37,7 +53,64 @@ algorithms:
       - P256+ML-DSA-65
       - P384+ML-DSA-87
 
-# Stricter degradation settings
+  performance:
+    ML-KEM-512:
+      keygen_us: 18
+      encap_us: 24
+      decap_us: 22
+      security_bits: 128
+      public_key_bytes: 800
+      ciphertext_bytes: 768
+    ML-KEM-768:
+      keygen_us: 28
+      encap_us: 36
+      decap_us: 32
+      security_bits: 192
+      public_key_bytes: 1184
+      ciphertext_bytes: 1088
+    ML-KEM-1024:
+      keygen_us: 42
+      encap_us: 51
+      decap_us: 47
+      security_bits: 256
+      public_key_bytes: 1568
+      ciphertext_bytes: 1568
+    ML-DSA-44:
+      keygen_us: 98
+      sign_us: 198
+      verify_us: 92
+      security_bits: 128
+      public_key_bytes: 1312
+      signature_bytes: 2420
+    ML-DSA-65:
+      keygen_us: 142
+      sign_us: 287
+      verify_us: 134
+      security_bits: 192
+      public_key_bytes: 1952
+      signature_bytes: 3293
+    ML-DSA-87:
+      keygen_us: 214
+      sign_us: 389
+      verify_us: 187
+      security_bits: 256
+      public_key_bytes: 2592
+      signature_bytes: 4595
+    SLH-DSA-128f:
+      keygen_us: 892
+      sign_us: 12450
+      verify_us: 678
+      security_bits: 128
+      public_key_bytes: 32
+      signature_bytes: 17088
+    SLH-DSA-192f:
+      keygen_us: 1340
+      sign_us: 18200
+      verify_us: 980
+      security_bits: 192
+      public_key_bytes: 48
+      signature_bytes: 35664
+
 degradation:
   fallback_chain:
     primary:
@@ -48,53 +121,137 @@ degradation:
       - ML-DSA-87
       - ML-DSA-65
       - P384+ML-DSA-87
-      
+
   warm_standby:
     enabled: true
     precompute_keys: true
-    key_pool_size: 2000            # Larger key pool
-    refresh_interval_sec: 1800     # More frequent rotation
+    key_pool_size: 2000
+    refresh_interval_sec: 1800
 
-# Migration configuration for high threat
+  thresholds:
+    latency_max_us: 2000
+    error_rate_max: 0.005
+    utilization_high: 0.85
+    utilization_critical: 0.95
+
 migration:
-  current_phase: pqc               # Force PQC-primary mode
-  
+  current_phase: pqc
+
+  phase_duration:
+    assessment: 2
+    hybrid_deployment: 4
+    pqc_primary: 8
+    classical_deprecation: 26
+
   rollback:
     enabled: true
     auto_trigger: true
-    latency_threshold_us: 2000     # Higher latency tolerance
+    latency_threshold_us: 2000
     error_threshold: 0.005
+    cooldown_sec: 300
+    max_rollbacks_per_day: 5
 
-# Stricter compliance settings
+  dual_key:
+    enabled: true
+    sync_interval_sec: 30
+
+resources:
+  cores:
+    classical_cores: 2
+    pqc_cores: 12
+    hybrid_cores: 4
+    ml_cores: 2
+
+  memory:
+    key_cache_mb: 1024
+    session_cache_mb: 2048
+    work_buffer_mb: 512
+
+  queues:
+    submit_queue_depth: 4096
+    dispatch_queue_depth: 1024
+    completion_queue_depth: 4096
+    priority_queue_depth: 256
+
 compliance:
+  frameworks:
+    fips_140_3: true
+    pci_dss: false
+    hipaa: false
+    fedramp: false
+
   security:
-    min_security_bits: 192         # Require higher security level
-    require_quantum_safe: true     # Enforce PQC
+    min_security_bits: 192
+    require_quantum_safe: true
     allow_classical_only: false
 
-# Elevated threat parameters
+  audit:
+    enabled: true
+    log_all_operations: false
+    log_algorithm_selection: true
+    log_policy_changes: true
+    retention_days: 365
+
 threat:
   model:
-    initial_threat_level: 0.7      # High initial threat
-    threat_increase_rate: 0.05     # Faster threat progression
-    
+    initial_threat_level: 0.7
+    threat_increase_rate: 0.05
+
   quantum_timeline:
-    scenario: optimistic           # Assume earlier CRQC availability
+    scenario: optimistic
     crqc_probability_2030: 0.5
     crqc_probability_2035: 0.8
     crqc_probability_2040: 0.95
 
-# More sensitive monitoring
+  sources:
+    - name: cisa
+      url: https://www.cisa.gov/quantum
+      refresh_interval_sec: 1800
+
 monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+
   metrics:
-    collection_interval_ms: 500    # More frequent collection
-    
+    collection_interval_ms: 500
+    histogram_buckets:
+      - 10
+      - 50
+      - 100
+      - 250
+      - 500
+      - 1000
+      - 2500
+      - 5000
+      - 10000
+
   alerts:
     latency_p99_us: 2000
-    throughput_min: 30000          # Lower throughput acceptable
+    throughput_min: 30000
     error_rate_max: 0.005
     availability_min: 0.999
 
-# Verbose logging for high threat scenarios
 logging:
   level: debug
+  format: json
+  output:
+    - type: stdout
+
+redis:
+  url: redis://localhost:6379
+  pool_size: 10
+  timeout_ms: 1000
+
+acceleration:
+  software:
+    use_avx2: true
+    use_avx512: false
+    thread_pool_size: 0
+
+  fpga:
+    enabled: false
+    device: /dev/xdma0
+    max_utilization: 0.8
+    dma_buffer_size_mb: 4
