@@ -82,6 +82,7 @@ pub use migration::{MigrationPhase, MigrationStrategy};
 pub use optimizer::{ObjectiveWeights, ParetoFrontier};
 pub use scheduler::{Scheduler, SchedulerHandle};
 pub use workload::WorkloadGenerator;
+pub use serde::{Deserialize, Serialize};
 
 /// Priority levels for cryptographic operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -122,15 +123,15 @@ impl Default for DataSensitivity {
 }
 
 /// Compliance framework requirements
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ComplianceRequirements {
-    /// FIPS 140-3 compliance
+    #[serde(default)]
     pub fips_140_3: bool,
-    /// PCI-DSS compliance
+    #[serde(default)]
     pub pci_dss: bool,
-    /// HIPAA compliance
+    #[serde(default)]
     pub hipaa: bool,
-    /// FedRAMP compliance
+    #[serde(default)]
     pub fedramp: bool,
 }
 

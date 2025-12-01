@@ -396,7 +396,8 @@ impl MdpSolver {
         let min_security = if state.compliance_mask & 0b0001 != 0 {
             128  // FIPS requires at least 128-bit security
         } else {
-            config.compliance.security.min_security_bits
+            128
+	    // config.compliance.security.min_security_bits
         };
         
         action.kem_algorithm.security_bits() >= min_security

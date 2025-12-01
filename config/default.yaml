@@ -6,9 +6,9 @@
 scheduler:
   # MDP (Markov Decision Process) parameters for algorithm selection
   mdp:
-    gamma: 0.99                    # Discount factor (0-1)
-    epsilon: 1.0e-6                # Convergence threshold
-    max_iterations: 2000           # Maximum value iteration steps
+    gamma: 0.95                    # Discount factor (0-1)
+    epsilon: 0.01                # Convergence threshold
+    max_iterations: 100           # Maximum value iteration steps
     recompute_interval_sec: 60     # Policy recomputation interval
     cache_policy: true             # Cache computed policies
     
@@ -21,7 +21,7 @@ scheduler:
     
   # State space discretization
   state_space:
-    threat_bins: 11                # Number of threat level bins (0.0-1.0)
+    threat_bins: 3                # Number of threat level bins (0.0-1.0)
     workload_bins:                 # Workload intensity bins (req/s)
       - 1000
       - 5000
@@ -34,7 +34,7 @@ scheduler:
       - 200000
       - 300000
       - 500000
-    utilization_bins: 5            # Resource utilization bins per algorithm
+    utilization_bins: 3            # Resource utilization bins per algorithm
     
   # Action space configuration
   action_space:

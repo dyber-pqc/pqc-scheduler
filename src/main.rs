@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
 
     // Load workload definition
     info!("Loading workload from {:?}", args.workload);
-    let workload = WorkloadGenerator::from_file(&args.workload)
+    let mut workload = WorkloadGenerator::from_file(&args.workload)
         .with_context(|| format!("Failed to load workload from {:?}", args.workload))?;
     info!("Workload: {} ({})", workload.name(), workload.description());
 
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
     if args.warmup > 0 {
         info!("Starting warmup period ({} seconds)...", args.warmup);
         scheduler.set_warmup_mode(true);
-        run_workload(&mut scheduler, &workload, Duration::from_secs(args.warmup)).await?;
+        run_workload(&mut scheduler, &mut workload, Duration::from_secs(args.warmup)).await?;
         scheduler.set_warmup_mode(false);
         scheduler.reset_metrics();
         info!("Warmup complete");
@@ -155,7 +155,7 @@ async fn main() -> Result<()> {
     });
 
     // Run the workload
-    run_workload(&mut scheduler, &workload, Duration::from_secs(args.duration)).await?;
+    run_workload(&mut scheduler, &mut workload, Duration::from_secs(args.duration)).await?;
     
     let elapsed = start_time.elapsed();
     info!("Experiment completed in {:.2}s", elapsed.as_secs_f64());
@@ -211,7 +211,7 @@ fn init_logging(verbose: bool) -> Result<()> {
 /// Run the workload for the specified duration
 async fn run_workload(
     scheduler: &mut Scheduler,
-    workload: &WorkloadGenerator,
+    workload: &mut WorkloadGenerator,
     duration: Duration,
 ) -> Result<()> {
     let deadline = tokio::time::Instant::now() + duration;

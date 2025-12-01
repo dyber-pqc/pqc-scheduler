@@ -1,3 +1,4 @@
+//mod.rs
 //! Core scheduler implementation
 //!
 //! This module provides the main `Scheduler` struct that orchestrates all
@@ -62,58 +63,58 @@ struct OperationSubmission {
 pub struct Scheduler {
     /// Configuration
     config: Config,
-    
+
     /// Random seed for reproducibility
     seed: u64,
-    
+
     /// MDP policy for algorithm selection
     mdp_policy: Arc<RwLock<MdpPolicy>>,
-    
+
     /// MDP solver for policy computation
     mdp_solver: MdpSolver,
-    
+
     /// Multi-objective optimizer
     optimizer: MultiObjectiveOptimizer,
-    
+
     /// Graceful degradation controller
     degradation_controller: DegradationController,
-    
+
     /// Migration manager
     migration_manager: MigrationManager,
-    
+
     /// Cryptographic backend
     crypto_backend: Arc<CryptoBackend>,
-    
+
     /// Metrics collector
     metrics: Arc<MetricsCollector>,
-    
+
     /// Current state
     current_state: Arc<RwLock<State>>,
-    
+
     /// Pending operations
     pending_ops: Arc<DashMap<Uuid, Instant>>,
-    
+
     /// Concurrency limiter
     semaphore: Arc<Semaphore>,
-    
+
     /// Operation submission channel
     submission_tx: mpsc::Sender<OperationSubmission>,
-    
+
     /// Submission receiver (for internal processing)
     submission_rx: Option<mpsc::Receiver<OperationSubmission>>,
-    
+
     /// Shutdown channel
     shutdown_rx: Option<oneshot::Receiver<()>>,
-    
+
     /// Scheduler handle
     handle: SchedulerHandle,
-    
+
     /// Warmup mode flag
     warmup_mode: bool,
-    
+
     /// Algorithm switch counter
     algorithm_switches: Arc<std::sync::atomic::AtomicU64>,
-    
+
     /// Fallback event counter
     fallback_events: Arc<std::sync::atomic::AtomicU64>,
 }
@@ -122,20 +123,20 @@ impl Scheduler {
     /// Create a new scheduler with the given configuration
     pub async fn new(config: Config, seed: u64) -> Result<Self> {
         info!("Initializing scheduler with seed {}", seed);
-        
+
         // Initialize cryptographic backend
         let crypto_backend = Arc::new(
             CryptoBackend::new(&config.algorithms, &config.acceleration)
                 .context("Failed to initialize crypto backend")?
         );
-        
+
         // Initialize MDP solver
-        let mdp_solver = MdpSolver::new(
+        let mut mdp_solver = MdpSolver::new(
             config.scheduler.mdp.gamma,
             config.scheduler.mdp.epsilon,
             config.scheduler.mdp.max_iterations,
         );
-        
+
         // Compute initial policy
         info!("Computing initial MDP policy...");
         let initial_state = State::new(
@@ -145,10 +146,10 @@ impl Scheduler {
             config.compliance.clone(),
             config.migration.current_phase.clone(),
         );
-        
+
         let mdp_policy = mdp_solver.compute_policy(&initial_state, &config)?;
         info!("Initial policy computed in {} iterations", mdp_solver.last_iteration_count());
-        
+
         // Initialize optimizer
         let optimizer = MultiObjectiveOptimizer::new(
             ObjectiveWeights {
@@ -158,34 +159,34 @@ impl Scheduler {
                 throughput: config.scheduler.weights.throughput,
             },
         );
-        
+
         // Initialize degradation controller
         let degradation_controller = DegradationController::new(
             FallbackChain::from_config(&config.degradation.fallback_chain),
             config.degradation.warm_standby.clone(),
             config.degradation.thresholds.clone(),
         );
-        
+
         // Initialize migration manager
         let migration_manager = MigrationManager::new(
             config.migration.current_phase.clone(),
             config.migration.rollback.clone(),
             config.migration.dual_key.clone(),
         );
-        
+
         // Initialize metrics collector
         let metrics = Arc::new(MetricsCollector::new());
-        
+
         // Create channels
         let (submission_tx, submission_rx) = mpsc::channel(QUEUE_CAPACITY);
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
-        
+
         // Create handle
         let handle = SchedulerHandle {
             shutdown_tx: Arc::new(RwLock::new(Some(shutdown_tx))),
             running: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         };
-        
+
         Ok(Self {
             config,
             seed,
@@ -237,44 +238,69 @@ impl Scheduler {
     }
 
     /// Submit an operation for processing
-    pub async fn submit(&self, operation: Operation) -> Result<OperationResult, SchedulerError> {
-        // Acquire semaphore permit
-        let _permit = self.semaphore.acquire().await
-            .map_err(|_| SchedulerError::ResourceExhausted("Semaphore closed".into()))?;
-        
-        // Create response channel
-        let (response_tx, response_rx) = oneshot::channel();
-        
-        // Submit operation
-        let submission = OperationSubmission { operation, response_tx };
-        
-        self.submission_tx.send(submission).await
-            .map_err(|_| SchedulerError::Internal("Submission channel closed".into()))?;
-        
-        // Wait for result
-        response_rx.await
-            .map_err(|_| SchedulerError::Internal("Response channel dropped".into()))?
-    }
+		pub async fn submit(&self, operation: Operation) -> Result<OperationResult, SchedulerError> {
+				// Acquire semaphore permit
+				let _permit = self.semaphore.acquire().await
+					.map_err(|_| SchedulerError::ResourceExhausted("Semaphore closed".into()))?;
+
+				// Extract algorithm from operation or use default
+				let algorithm = match &operation {
+					Operation::KeyExchange { algorithm, .. } => algorithm.clone().unwrap_or(Algorithm::MlKem768),
+					Operation::Encapsulation { algorithm, .. } => algorithm.clone().unwrap_or(Algorithm::MlKem768),
+					Operation::Decapsulation { algorithm, .. } => algorithm.clone().unwrap_or(Algorithm::MlKem768),
+					Operation::Sign { algorithm, .. } => algorithm.clone().unwrap_or(Algorithm::MlDsa65),
+					Operation::Verify { algorithm, .. } => algorithm.clone().unwrap_or(Algorithm::MlDsa65),
+				};
+
+				let start = std::time::Instant::now();
+				
+				// Execute the crypto operation
+				let result = self.crypto_backend.execute(&algorithm, &operation).await;
+				
+				let latency = start.elapsed();
+				let latency_us = latency.as_micros() as f64;
+				let success = result.is_ok();
+				let error = result.err().map(|e| e.to_string());
+				
+				// Record metrics
+				self.metrics.record_operation(
+					&algorithm,
+					&operation.operation_type(),
+					latency_us,
+					success,
+				);
+
+				// Build result
+				Ok(OperationResult {
+					id: uuid::Uuid::new_v4(),
+					algorithm: algorithm.clone(),
+					operation_type: operation.operation_type(),
+					latency_us,
+					success,
+					security_bits: algorithm.security_bits(),
+					error,
+				})
+			}
 
     /// Process a single operation (internal)
     async fn process_operation(&self, operation: Operation) -> Result<OperationResult, SchedulerError> {
         let op_id = Uuid::new_v4();
         let start_time = Instant::now();
-        
+
         // Record pending operation
         self.pending_ops.insert(op_id, start_time);
-        
+
         // Get current state
         let current_state = self.current_state.read().clone();
-        
+
         // Select algorithm using MDP policy
         let policy = self.mdp_policy.read();
         let action = policy.get_action(&current_state)
             .ok_or_else(|| SchedulerError::Internal("No action found for state".into()))?;
-        
+
         // Determine algorithm to use
         let algorithm = self.select_algorithm(&operation, &action)?;
-        
+
         // Check for algorithm availability
         let algorithm = match self.degradation_controller.check_availability(&algorithm) {
             Ok(alg) => alg,
@@ -284,16 +310,16 @@ impl Scheduler {
                 fallback
             }
         };
-        
+
         // Execute cryptographic operation
         let result = self.crypto_backend.execute(&algorithm, &operation).await;
-        
+
         // Remove from pending
         self.pending_ops.remove(&op_id);
-        
+
         // Calculate latency
         let latency_us = start_time.elapsed().as_micros() as f64;
-        
+
         // Record metrics (unless in warmup)
         if !self.warmup_mode {
             self.metrics.record_operation(
@@ -303,7 +329,7 @@ impl Scheduler {
                 result.is_ok(),
             );
         }
-        
+
         // Build result
         match result {
             Ok(_) => Ok(OperationResult {
@@ -339,7 +365,7 @@ impl Scheduler {
                 return Ok(requested);
             }
         }
-        
+
         // Use MDP-selected algorithm
         let algorithm = match operation.operation_type() {
             OperationType::KeyGen | OperationType::Encap | OperationType::Decap => {
@@ -349,14 +375,14 @@ impl Scheduler {
                 action.signature_algorithm.clone()
             }
         };
-        
+
         // Verify algorithm is allowed
         if !self.is_algorithm_allowed(&algorithm) {
             return Err(SchedulerError::AlgorithmUnavailable(
                 format!("{:?} not enabled", algorithm)
             ));
         }
-        
+
         Ok(algorithm)
     }
 
@@ -368,22 +394,22 @@ impl Scheduler {
     /// Drain pending operations
     pub async fn drain_queues(&self, timeout: Duration) -> Result<()> {
         let deadline = Instant::now() + timeout;
-        
+
         while !self.pending_ops.is_empty() && Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
-        
+
         if !self.pending_ops.is_empty() {
             warn!("{} operations still pending after drain timeout", self.pending_ops.len());
         }
-        
+
         Ok(())
     }
 
     /// Collect final results
     pub fn collect_results(&self) -> SchedulerResults {
         let metrics = self.metrics.snapshot();
-        
+
         SchedulerResults {
             throughput_mean: metrics.throughput_mean,
             throughput_std: metrics.throughput_std,
@@ -405,16 +431,16 @@ impl Scheduler {
     /// Shutdown the scheduler gracefully
     pub async fn shutdown(&mut self) -> Result<()> {
         info!("Shutting down scheduler...");
-        
+
         // Signal shutdown
         self.handle.shutdown();
-        
+
         // Wait for pending operations
         self.drain_queues(Duration::from_secs(5)).await?;
-        
+
         // Shutdown crypto backend
         self.crypto_backend.shutdown().await?;
-        
+
         info!("Scheduler shutdown complete");
         Ok(())
     }
