@@ -1,0 +1,93 @@
+{
+  "$schema": "./workload_schema.json",
+  "name": "constant_rate",
+  "description": "Constant rate workload for baseline performance testing",
+  "version": "1.0.0",
+  "created": "2024-11-01T00:00:00Z",
+  "author": "Zachary Kleckner <zkleckner@dyber.org>",
+  
+  "arrival_model": "poisson",
+  "poisson_config": {
+    "rate": 100000,
+    "description": "Constant 100K requests per second"
+  },
+  
+  "algorithm_mix": {
+    "kem": 0.6,
+    "signature": 0.4
+  },
+  
+  "operation_mix": {
+    "kem_operations": {
+      "keygen": 0.1,
+      "encap": 0.5,
+      "decap": 0.4
+    },
+    "signature_operations": {
+      "keygen": 0.05,
+      "sign": 0.30,
+      "verify": 0.65
+    }
+  },
+  
+  "algorithm_distribution": {
+    "kem": {
+      "ML-KEM-768": 0.80,
+      "X25519+ML-KEM-768": 0.20
+    },
+    "signature": {
+      "ML-DSA-65": 0.70,
+      "Ed25519+ML-DSA-65": 0.30
+    }
+  },
+  
+  "priority_distribution": {
+    "realtime": 0.00,
+    "high": 0.20,
+    "normal": 0.80,
+    "background": 0.00
+  },
+  
+  "data_sensitivity_distribution": {
+    "low": 0.40,
+    "medium": 0.50,
+    "high": 0.10,
+    "critical": 0.00
+  },
+  
+  "client_config": {
+    "concurrent_connections": 5000,
+    "connection_duration_mean_sec": 120.0,
+    "connection_duration_std_sec": 30.0,
+    "requests_per_connection_mean": 100,
+    "think_time_mean_ms": 50,
+    "think_time_std_ms": 20
+  },
+  
+  "temporal_patterns": {
+    "diurnal_enabled": false,
+    "weekly_enabled": false
+  },
+  
+  "burst_config": {
+    "enabled": false
+  },
+  
+  "threat_evolution": {
+    "enabled": false,
+    "initial_threat": 0.1
+  },
+  
+  "compliance_requirements": {
+    "fips_140_3": true,
+    "pci_dss": false,
+    "hipaa": false,
+    "fedramp": false
+  },
+  
+  "metrics_collection": {
+    "sample_interval_ms": 1000,
+    "histogram_percentiles": [50, 90, 95, 99, 99.9],
+    "aggregate_by": ["algorithm", "operation"]
+  }
+}

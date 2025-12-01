@@ -1,0 +1,100 @@
+# PQC Scheduler High Threat Configuration
+# Version: 1.0.0
+# Copyright (c) 2025 Dyber, Inc.
+#
+# This configuration is optimized for elevated threat scenarios
+# where quantum attack capability is assessed as more likely.
+
+# Inherit from default configuration
+_base: config/default.yaml
+
+# Override scheduler settings for high threat
+scheduler:
+  mdp:
+    gamma: 0.995                   # Higher discount for long-term security
+    recompute_interval_sec: 30     # More frequent policy updates
+    
+  weights:
+    security: 2.0                  # Double security weight
+    latency: 0.3                   # Reduce latency priority
+    cost: 0.2                      # Reduce cost priority
+    throughput: 0.3
+
+# Algorithm configuration for high threat
+algorithms:
+  enabled:
+    classical: []                  # Disable classical-only algorithms
+    post_quantum:
+      - ML-KEM-768
+      - ML-KEM-1024
+      - ML-DSA-65
+      - ML-DSA-87
+      - SLH-DSA-128f
+      - SLH-DSA-192f
+    hybrid:
+      - X25519+ML-KEM-768
+      - P384+ML-KEM-1024
+      - P256+ML-DSA-65
+      - P384+ML-DSA-87
+
+# Stricter degradation settings
+degradation:
+  fallback_chain:
+    primary:
+      - ML-KEM-1024
+      - ML-KEM-768
+      - X25519+ML-KEM-768
+    signature:
+      - ML-DSA-87
+      - ML-DSA-65
+      - P384+ML-DSA-87
+      
+  warm_standby:
+    enabled: true
+    precompute_keys: true
+    key_pool_size: 2000            # Larger key pool
+    refresh_interval_sec: 1800     # More frequent rotation
+
+# Migration configuration for high threat
+migration:
+  current_phase: pqc               # Force PQC-primary mode
+  
+  rollback:
+    enabled: true
+    auto_trigger: true
+    latency_threshold_us: 2000     # Higher latency tolerance
+    error_threshold: 0.005
+
+# Stricter compliance settings
+compliance:
+  security:
+    min_security_bits: 192         # Require higher security level
+    require_quantum_safe: true     # Enforce PQC
+    allow_classical_only: false
+
+# Elevated threat parameters
+threat:
+  model:
+    initial_threat_level: 0.7      # High initial threat
+    threat_increase_rate: 0.05     # Faster threat progression
+    
+  quantum_timeline:
+    scenario: optimistic           # Assume earlier CRQC availability
+    crqc_probability_2030: 0.5
+    crqc_probability_2035: 0.8
+    crqc_probability_2040: 0.95
+
+# More sensitive monitoring
+monitoring:
+  metrics:
+    collection_interval_ms: 500    # More frequent collection
+    
+  alerts:
+    latency_p99_us: 2000
+    throughput_min: 30000          # Lower throughput acceptable
+    error_rate_max: 0.005
+    availability_min: 0.999
+
+# Verbose logging for high threat scenarios
+logging:
+  level: debug

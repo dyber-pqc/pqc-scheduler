@@ -1,0 +1,131 @@
+# PQC Scheduler FPGA-Accelerated Configuration
+# Version: 1.0.0
+# Copyright (c) 2025 Dyber, Inc.
+#
+# Optimized for deployment with Xilinx Alveo U280 FPGA acceleration
+
+_base: config/default.yaml
+
+scheduler:
+  mdp:
+    gamma: 0.99
+    epsilon: 1.0e-6
+    recompute_interval_sec: 120    # Less frequent with FPGA
+    
+  weights:
+    security: 1.0
+    latency: 0.7                   # Higher latency priority with FPGA
+    cost: 0.2
+    throughput: 0.6
+
+algorithms:
+  enabled:
+    classical:
+      - X25519
+      - ECDSA-P256
+    post_quantum:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+      - ML-DSA-44
+      - ML-DSA-65
+      - ML-DSA-87
+    hybrid:
+      - X25519+ML-KEM-768
+      - P256+ML-KEM-768
+      - Ed25519+ML-DSA-65
+
+degradation:
+  fallback_chain:
+    primary:
+      - ML-KEM-768
+      - ML-KEM-512          # Fallback to smaller parameter set
+      - X25519+ML-KEM-768
+      - X25519
+    signature:
+      - ML-DSA-65
+      - ML-DSA-44           # Fallback to smaller parameter set
+      - Ed25519+ML-DSA-65
+      - ECDSA-P256
+      
+  warm_standby:
+    enabled: true
+    precompute_keys: true
+    key_pool_size: 10000    # Larger pool with FPGA
+    refresh_interval_sec: 900
+
+  thresholds:
+    latency_max_us: 100     # Stricter with FPGA acceleration
+    error_rate_max: 0.0001
+    utilization_high: 0.75
+    utilization_critical: 0.90
+
+resources:
+  cores:
+    classical_cores: 4
+    pqc_cores: 16           # More PQC cores with FPGA offload
+    hybrid_cores: 8
+    ml_cores: 2
+    
+  memory:
+    key_cache_mb: 2048      # Larger cache
+    session_cache_mb: 4096
+    work_buffer_mb: 512
+    
+  queues:
+    submit_queue_depth: 16384
+    dispatch_queue_depth: 4096
+    completion_queue_depth: 16384
+    priority_queue_depth: 1024
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+    
+  metrics:
+    collection_interval_ms: 250   # More frequent with FPGA
+    histogram_buckets:
+      - 5
+      - 10
+      - 20
+      - 50
+      - 100
+      - 200
+      - 500
+      - 1000
+      
+  alerts:
+    latency_p99_us: 200     # Stricter with FPGA
+    throughput_min: 200000  # Higher throughput target
+    error_rate_max: 0.0001
+    availability_min: 0.99999
+
+acceleration:
+  software:
+    use_avx2: true
+    use_avx512: true        # Enable AVX-512 for software fallback
+    thread_pool_size: 0
+    
+  fpga:
+    enabled: true
+    device: /dev/xdma0
+    max_utilization: 0.85
+    dma_buffer_size_mb: 8
+    
+    # FPGA-specific settings
+    ntt_engines: 16
+    ntt_frequency_mhz: 250
+    
+    # Algorithm routing
+    offload_algorithms:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+      - ML-DSA-44
+      - ML-DSA-65
+      - ML-DSA-87
+      
+    # Fallback to software when FPGA utilization high
+    software_fallback_threshold: 0.8

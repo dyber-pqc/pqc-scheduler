@@ -1,0 +1,106 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.o
+*.a
+*.so
+*.dylib
+
+# Test artifacts
+*.profdata
+*.profraw
+
+# Benchmark results (keep structure, ignore large data)
+results/benchmark_*/run_*.json
+results/benchmark_*/run_*.log
+!results/benchmark_*/aggregated.json
+
+# FPGA artifacts
+vivado_project/
+*.bit
+*.ltx
+*.jou
+*.log
+*.str
+*.xpr
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Documentation build
+/docs/build/
+
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+.env
+.env.local
+.env.*.local
+
+# Redis
+dump.rdb
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Coverage reports
+coverage/
+*.lcov
+htmlcov/
+
+# Profiling
+perf.data
+perf.data.old
+flamegraph.svg
+
+# Package files
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+
+# Editor backups
+*~
+\#*\#
+.\#*

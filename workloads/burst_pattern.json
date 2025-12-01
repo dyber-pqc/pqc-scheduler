@@ -1,0 +1,188 @@
+{
+  "$schema": "./workload_schema.json",
+  "name": "burst_pattern",
+  "description": "Bursty workload pattern for stress testing and graceful degradation validation",
+  "version": "1.0.0",
+  "created": "2024-11-01T00:00:00Z",
+  "author": "Zachary Kleckner <zkleckner@dyber.org>",
+  
+  "arrival_model": "mmpp",
+  "mmpp_config": {
+    "description": "3-state Markov chain with idle, normal, and burst states",
+    "states": [
+      {
+        "name": "idle",
+        "rate": 10000,
+        "duration_mean": 10.0,
+        "duration_std": 3.0
+      },
+      {
+        "name": "normal",
+        "rate": 100000,
+        "duration_mean": 45.0,
+        "duration_std": 15.0
+      },
+      {
+        "name": "burst",
+        "rate": 500000,
+        "duration_mean": 5.0,
+        "duration_std": 2.0
+      }
+    ],
+    "transition_matrix": [
+      [0.70, 0.28, 0.02],
+      [0.05, 0.90, 0.05],
+      [0.15, 0.80, 0.05]
+    ],
+    "initial_state": "normal"
+  },
+  
+  "algorithm_mix": {
+    "kem": 0.55,
+    "signature": 0.45
+  },
+  
+  "operation_mix": {
+    "kem_operations": {
+      "keygen": 0.15,
+      "encap": 0.45,
+      "decap": 0.40
+    },
+    "signature_operations": {
+      "keygen": 0.10,
+      "sign": 0.35,
+      "verify": 0.55
+    }
+  },
+  
+  "algorithm_distribution": {
+    "kem": {
+      "ML-KEM-512": 0.20,
+      "ML-KEM-768": 0.45,
+      "ML-KEM-1024": 0.10,
+      "X25519+ML-KEM-768": 0.15,
+      "X25519": 0.10
+    },
+    "signature": {
+      "ML-DSA-44": 0.15,
+      "ML-DSA-65": 0.45,
+      "ML-DSA-87": 0.10,
+      "Ed25519+ML-DSA-65": 0.15,
+      "ECDSA-P256": 0.15
+    }
+  },
+  
+  "priority_distribution": {
+    "realtime": 0.05,
+    "high": 0.30,
+    "normal": 0.55,
+    "background": 0.10
+  },
+  
+  "data_sensitivity_distribution": {
+    "low": 0.25,
+    "medium": 0.45,
+    "high": 0.20,
+    "critical": 0.10
+  },
+  
+  "client_config": {
+    "concurrent_connections": 25000,
+    "connection_duration_mean_sec": 30.0,
+    "connection_duration_std_sec": 20.0,
+    "requests_per_connection_mean": 25,
+    "think_time_mean_ms": 25,
+    "think_time_std_ms": 15
+  },
+  
+  "temporal_patterns": {
+    "diurnal_enabled": false,
+    "weekly_enabled": false
+  },
+  
+  "burst_config": {
+    "description": "Additional random mega-bursts for extreme stress testing",
+    "enabled": true,
+    "burst_probability": 0.005,
+    "burst_multiplier_min": 3.0,
+    "burst_multiplier_max": 10.0,
+    "burst_duration_mean_sec": 3.0,
+    "burst_duration_std_sec": 1.5
+  },
+  
+  "threat_evolution": {
+    "enabled": true,
+    "initial_threat": 0.2,
+    "threat_events": [
+      {
+        "time_offset_sec": 600,
+        "threat_level": 0.5,
+        "description": "Elevated threat during first burst cycle"
+      },
+      {
+        "time_offset_sec": 1200,
+        "threat_level": 0.8,
+        "description": "Critical threat scenario"
+      },
+      {
+        "time_offset_sec": 1500,
+        "threat_level": 0.3,
+        "description": "Threat mitigation"
+      },
+      {
+        "time_offset_sec": 2400,
+        "threat_level": 0.6,
+        "description": "Second elevated threat period"
+      },
+      {
+        "time_offset_sec": 3000,
+        "threat_level": 0.2,
+        "description": "Return to baseline"
+      }
+    ]
+  },
+  
+  "failure_injection": {
+    "description": "Simulated failures for graceful degradation testing",
+    "enabled": true,
+    "algorithm_vulnerability_events": [
+      {
+        "time_offset_sec": 900,
+        "algorithm": "ML-KEM-768",
+        "duration_sec": 60,
+        "description": "Simulated temporary vulnerability"
+      }
+    ],
+    "hardware_failure_events": [
+      {
+        "time_offset_sec": 1800,
+        "core_type": "pqc",
+        "cores_affected": 2,
+        "duration_sec": 120,
+        "description": "Simulated partial hardware failure"
+      }
+    ],
+    "resource_exhaustion_events": [
+      {
+        "time_offset_sec": 2700,
+        "resource": "memory",
+        "utilization_target": 0.95,
+        "duration_sec": 90,
+        "description": "Simulated memory pressure"
+      }
+    ]
+  },
+  
+  "compliance_requirements": {
+    "fips_140_3": true,
+    "pci_dss": true,
+    "hipaa": false,
+    "fedramp": false
+  },
+  
+  "metrics_collection": {
+    "sample_interval_ms": 500,
+    "histogram_percentiles": [50, 75, 90, 95, 99, 99.5, 99.9, 99.99],
+    "aggregate_by": ["algorithm", "operation", "priority", "state"]
+  }
+}

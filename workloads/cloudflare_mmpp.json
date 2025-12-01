@@ -1,0 +1,150 @@
+{
+  "$schema": "./workload_schema.json",
+  "name": "cloudflare_mmpp",
+  "description": "Synthetic TLS traffic patterns derived from Cloudflare Radar weekly reports with Markov-Modulated Poisson Process (MMPP) modulation",
+  "version": "1.0.0",
+  "created": "2024-11-01T00:00:00Z",
+  "author": "Zachary Kleckner <zkleckner@dyber.org>",
+  
+  "arrival_model": "mmpp",
+  "mmpp_config": {
+    "description": "2-state Markov chain with low and high traffic states",
+    "states": [
+      {
+        "name": "low",
+        "rate": 50000,
+        "duration_mean": 30.0,
+        "duration_std": 5.0
+      },
+      {
+        "name": "high",
+        "rate": 200000,
+        "duration_mean": 30.0,
+        "duration_std": 10.0
+      }
+    ],
+    "transition_matrix": [
+      [0.95, 0.05],
+      [0.10, 0.90]
+    ],
+    "initial_state": "low"
+  },
+  
+  "algorithm_mix": {
+    "description": "Distribution of cryptographic operation types",
+    "kem": 0.6,
+    "signature": 0.4
+  },
+  
+  "operation_mix": {
+    "description": "Distribution of operations within each type",
+    "kem_operations": {
+      "keygen": 0.1,
+      "encap": 0.5,
+      "decap": 0.4
+    },
+    "signature_operations": {
+      "keygen": 0.05,
+      "sign": 0.30,
+      "verify": 0.65
+    }
+  },
+  
+  "algorithm_distribution": {
+    "description": "Probability distribution across algorithms when not using scheduler selection",
+    "kem": {
+      "ML-KEM-512": 0.15,
+      "ML-KEM-768": 0.55,
+      "ML-KEM-1024": 0.10,
+      "X25519+ML-KEM-768": 0.15,
+      "X25519": 0.05
+    },
+    "signature": {
+      "ML-DSA-44": 0.10,
+      "ML-DSA-65": 0.50,
+      "ML-DSA-87": 0.15,
+      "Ed25519+ML-DSA-65": 0.15,
+      "ECDSA-P256": 0.10
+    }
+  },
+  
+  "priority_distribution": {
+    "description": "Distribution of operation priorities",
+    "realtime": 0.02,
+    "high": 0.28,
+    "normal": 0.60,
+    "background": 0.10
+  },
+  
+  "data_sensitivity_distribution": {
+    "description": "Distribution of data sensitivity levels",
+    "low": 0.30,
+    "medium": 0.50,
+    "high": 0.15,
+    "critical": 0.05
+  },
+  
+  "client_config": {
+    "concurrent_connections": 10000,
+    "connection_duration_mean_sec": 60.0,
+    "connection_duration_std_sec": 30.0,
+    "requests_per_connection_mean": 50,
+    "think_time_mean_ms": 100,
+    "think_time_std_ms": 50
+  },
+  
+  "temporal_patterns": {
+    "description": "Time-based patterns overlaid on MMPP",
+    "diurnal_enabled": true,
+    "diurnal_peak_hour_utc": 14,
+    "diurnal_trough_hour_utc": 4,
+    "diurnal_amplitude": 0.3,
+    "weekly_enabled": false
+  },
+  
+  "burst_config": {
+    "description": "Random burst injection for stress testing",
+    "enabled": true,
+    "burst_probability": 0.001,
+    "burst_multiplier_min": 2.0,
+    "burst_multiplier_max": 5.0,
+    "burst_duration_mean_sec": 5.0,
+    "burst_duration_std_sec": 2.0
+  },
+  
+  "threat_evolution": {
+    "description": "Simulated threat level changes during workload execution",
+    "enabled": true,
+    "initial_threat": 0.1,
+    "threat_events": [
+      {
+        "time_offset_sec": 1800,
+        "threat_level": 0.3,
+        "description": "Simulated threat intelligence update"
+      },
+      {
+        "time_offset_sec": 3000,
+        "threat_level": 0.6,
+        "description": "Elevated threat scenario"
+      },
+      {
+        "time_offset_sec": 3300,
+        "threat_level": 0.2,
+        "description": "Return to baseline"
+      }
+    ]
+  },
+  
+  "compliance_requirements": {
+    "fips_140_3": true,
+    "pci_dss": false,
+    "hipaa": false,
+    "fedramp": false
+  },
+  
+  "metrics_collection": {
+    "sample_interval_ms": 1000,
+    "histogram_percentiles": [50, 90, 95, 99, 99.9],
+    "aggregate_by": ["algorithm", "operation", "priority"]
+  }
+}

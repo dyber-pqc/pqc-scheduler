@@ -1,0 +1,298 @@
+# PQC Scheduler Default Configuration
+# Version: 1.0.0
+# Copyright (c) 2025 Dyber, Inc.
+
+# Scheduler Configuration
+scheduler:
+  # MDP (Markov Decision Process) parameters for algorithm selection
+  mdp:
+    gamma: 0.99                    # Discount factor (0-1)
+    epsilon: 1.0e-6                # Convergence threshold
+    max_iterations: 2000           # Maximum value iteration steps
+    recompute_interval_sec: 60     # Policy recomputation interval
+    cache_policy: true             # Cache computed policies
+    
+  # Objective function weights
+  weights:
+    security: 1.0                  # Weight for security objective
+    latency: 0.5                   # Weight for latency objective
+    cost: 0.3                      # Weight for operational cost
+    throughput: 0.4                # Weight for throughput objective
+    
+  # State space discretization
+  state_space:
+    threat_bins: 11                # Number of threat level bins (0.0-1.0)
+    workload_bins:                 # Workload intensity bins (req/s)
+      - 1000
+      - 5000
+      - 10000
+      - 25000
+      - 50000
+      - 75000
+      - 100000
+      - 150000
+      - 200000
+      - 300000
+      - 500000
+    utilization_bins: 5            # Resource utilization bins per algorithm
+    
+  # Action space configuration
+  action_space:
+    algorithm_count: 20            # Total algorithms available
+    migration_directions: 3        # maintain, escalate, deescalate
+    allocation_profiles: 10        # Pre-computed allocation profiles
+
+# Algorithm Configuration
+algorithms:
+  # Enabled algorithms
+  enabled:
+    classical:
+      - RSA-2048
+      - RSA-4096
+      - ECDSA-P256
+      - ECDSA-P384
+      - X25519
+    post_quantum:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+      - ML-DSA-44
+      - ML-DSA-65
+      - ML-DSA-87
+      - SLH-DSA-128f
+      - SLH-DSA-128s
+      - SLH-DSA-192f
+    hybrid:
+      - X25519+ML-KEM-768
+      - P256+ML-KEM-768
+      - P384+ML-KEM-1024
+      - Ed25519+ML-DSA-65
+      - P256+ML-DSA-65
+      - P384+ML-DSA-87
+      
+  # Algorithm performance characteristics (reference values)
+  performance:
+    ML-KEM-512:
+      keygen_us: 22
+      encap_us: 28
+      decap_us: 26
+      security_bits: 128
+      public_key_bytes: 800
+      ciphertext_bytes: 768
+    ML-KEM-768:
+      keygen_us: 28
+      encap_us: 36
+      decap_us: 32
+      security_bits: 192
+      public_key_bytes: 1184
+      ciphertext_bytes: 1088
+    ML-KEM-1024:
+      keygen_us: 42
+      encap_us: 51
+      decap_us: 47
+      security_bits: 256
+      public_key_bytes: 1568
+      ciphertext_bytes: 1568
+    ML-DSA-44:
+      keygen_us: 98
+      sign_us: 198
+      verify_us: 89
+      security_bits: 128
+      public_key_bytes: 1312
+      signature_bytes: 2420
+    ML-DSA-65:
+      keygen_us: 142
+      sign_us: 287
+      verify_us: 134
+      security_bits: 192
+      public_key_bytes: 1952
+      signature_bytes: 3293
+    ML-DSA-87:
+      keygen_us: 214
+      sign_us: 389
+      verify_us: 187
+      security_bits: 256
+      public_key_bytes: 2592
+      signature_bytes: 4595
+
+# Graceful Degradation Configuration
+degradation:
+  # Fallback chains for different scenarios
+  fallback_chain:
+    primary:
+      - ML-KEM-768
+      - X25519+ML-KEM-768
+      - X25519
+    signature:
+      - ML-DSA-65
+      - Ed25519+ML-DSA-65
+      - Ed25519
+      
+  # Warm standby configuration
+  warm_standby:
+    enabled: true
+    precompute_keys: true
+    key_pool_size: 1000            # Pre-generated keys per algorithm
+    refresh_interval_sec: 3600     # Key rotation interval
+    
+  # Detection thresholds
+  thresholds:
+    latency_max_us: 500            # Maximum acceptable latency
+    error_rate_max: 0.001          # Maximum error rate (0.1%)
+    utilization_high: 0.85         # High utilization threshold
+    utilization_critical: 0.95     # Critical utilization threshold
+
+# Migration Configuration
+migration:
+  # Current migration phase
+  current_phase: hybrid            # classical, hybrid, or pqc
+  
+  # Phase durations (in weeks)
+  phase_duration:
+    assessment: 4
+    hybrid_deployment: 8
+    pqc_primary: 16
+    classical_deprecation: 52
+    
+  # Rollback configuration
+  rollback:
+    enabled: true
+    auto_trigger: true
+    latency_threshold_us: 1000     # Trigger if latency exceeds
+    error_threshold: 0.01          # Trigger if error rate exceeds
+    cooldown_sec: 300              # Minimum time between rollbacks
+    max_rollbacks_per_day: 5
+    
+  # Dual-key management
+  dual_key:
+    enabled: true                  # Maintain both classical and PQC keys
+    sync_interval_sec: 60          # Synchronization interval
+
+# Resource Management
+resources:
+  # Processing cores allocation
+  cores:
+    classical_cores: 4
+    pqc_cores: 8
+    hybrid_cores: 4
+    ml_cores: 2
+    
+  # Memory allocation
+  memory:
+    key_cache_mb: 512
+    session_cache_mb: 1024
+    work_buffer_mb: 256
+    
+  # Queue configuration
+  queues:
+    submit_queue_depth: 4096
+    dispatch_queue_depth: 1024
+    completion_queue_depth: 4096
+    priority_queue_depth: 256
+
+# Compliance Configuration
+compliance:
+  # Enabled compliance frameworks
+  frameworks:
+    fips_140_3: true
+    pci_dss: false
+    hipaa: false
+    fedramp: false
+    
+  # Minimum security requirements
+  security:
+    min_security_bits: 128
+    require_quantum_safe: false    # Enforce PQC for all operations
+    allow_classical_only: true     # Allow classical-only mode
+    
+  # Audit logging
+  audit:
+    enabled: true
+    log_all_operations: false
+    log_algorithm_selection: true
+    log_policy_changes: true
+    retention_days: 365
+
+# Threat Intelligence Configuration
+threat:
+  # Threat model parameters
+  model:
+    initial_threat_level: 0.1      # Starting θ(t) value
+    threat_increase_rate: 0.02     # Annual increase rate
+    
+  # Quantum timeline scenarios
+  quantum_timeline:
+    scenario: moderate             # optimistic, moderate, conservative
+    crqc_probability_2030: 0.3
+    crqc_probability_2035: 0.5
+    crqc_probability_2040: 0.7
+    
+  # Intelligence sources
+  sources:
+    - name: cisa
+      url: https://www.cisa.gov/quantum
+      refresh_interval_sec: 3600
+    - name: gri
+      url: https://globalriskinstitute.org
+      refresh_interval_sec: 86400
+
+# Monitoring and Metrics
+monitoring:
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+    
+  # Metric collection
+  metrics:
+    collection_interval_ms: 1000
+    histogram_buckets:
+      - 10
+      - 50
+      - 100
+      - 250
+      - 500
+      - 1000
+      - 2500
+      - 5000
+      - 10000
+      
+  # Alerting thresholds
+  alerts:
+    latency_p99_us: 1000
+    throughput_min: 50000
+    error_rate_max: 0.001
+    availability_min: 0.9999
+
+# Logging Configuration
+logging:
+  level: info                      # trace, debug, info, warn, error
+  format: json                     # json or pretty
+  output:
+    - type: stdout
+    - type: file
+      path: /var/log/pqc-scheduler/scheduler.log
+      rotation: daily
+      retention_days: 30
+      
+# Redis Configuration (for session state)
+redis:
+  url: redis://localhost:6379
+  pool_size: 10
+  timeout_ms: 1000
+  
+# Hardware Acceleration
+acceleration:
+  # Software acceleration
+  software:
+    use_avx2: true
+    use_avx512: false
+    thread_pool_size: 0            # 0 = auto-detect
+    
+  # FPGA acceleration (optional)
+  fpga:
+    enabled: false
+    device: /dev/xdma0
+    max_utilization: 0.8
+    dma_buffer_size_mb: 4

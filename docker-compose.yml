@@ -1,0 +1,93 @@
+# PQC Scheduler - Docker Compose Configuration
+# Copyright (c) 2025 Dyber, Inc. All Rights Reserved.
+
+version: '3.8'
+
+services:
+  pqc-scheduler:
+    build: .
+    image: pqc-scheduler:latest
+    container_name: pqc-scheduler
+    restart: unless-stopped
+    ports:
+      - "9090:9090"   # Prometheus metrics
+    volumes:
+      - ./config:/etc/pqc-scheduler/config:ro
+      - ./workloads:/etc/pqc-scheduler/workloads:ro
+      - pqc-results:/var/lib/pqc-scheduler/results
+    environment:
+      - RUST_LOG=info
+      - RUST_BACKTRACE=1
+    depends_on:
+      - redis
+    networks:
+      - pqc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: pqc-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks:
+      - pqc-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: pqc-prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - pqc-network
+    depends_on:
+      - pqc-scheduler
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: pqc-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=pqc-admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - pqc-network
+    depends_on:
+      - prometheus
+
+volumes:
+  pqc-results:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  pqc-network:
+    driver: bridge

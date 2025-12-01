@@ -1,0 +1,133 @@
+# PQC Scheduler - Prometheus Alerting Rules
+# Copyright (c) 2025 Dyber, Inc. All Rights Reserved.
+
+groups:
+  - name: pqc_scheduler_alerts
+    rules:
+      # Throughput alerts
+      - alert: LowThroughput
+        expr: pqc_scheduler_throughput_ops_per_sec < 50000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low throughput detected"
+          description: "Throughput is {{ $value }} ops/s, below 50k threshold"
+
+      - alert: CriticalThroughput
+        expr: pqc_scheduler_throughput_ops_per_sec < 10000
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical throughput drop"
+          description: "Throughput dropped to {{ $value }} ops/s"
+
+      # Latency alerts
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, pqc_scheduler_latency_us_bucket) > 500
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 latency exceeds SLA"
+          description: "P99 latency is {{ $value }}μs, exceeds 500μs SLA"
+
+      - alert: CriticalLatency
+        expr: histogram_quantile(0.99, pqc_scheduler_latency_us_bucket) > 1000
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical latency spike"
+          description: "P99 latency is {{ $value }}μs"
+
+      # Error rate alerts
+      - alert: HighErrorRate
+        expr: rate(pqc_scheduler_errors_total[5m]) / rate(pqc_scheduler_operations_total[5m]) > 0.001
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: CriticalErrorRate
+        expr: rate(pqc_scheduler_errors_total[5m]) / rate(pqc_scheduler_operations_total[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # Algorithm fallback alerts
+      - alert: FrequentFallbacks
+        expr: rate(pqc_scheduler_fallback_events_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent algorithm fallbacks"
+          description: "{{ $value }} fallbacks per second"
+
+      # Resource utilization
+      - alert: HighCoreUtilization
+        expr: pqc_scheduler_core_utilization > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High core utilization"
+          description: "Core utilization at {{ $value | humanizePercentage }}"
+
+      # Queue depth
+      - alert: HighQueueDepth
+        expr: pqc_scheduler_queue_depth > 5000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High queue depth"
+          description: "Queue depth is {{ $value }} operations"
+
+      # Scheduler health
+      - alert: SchedulerDown
+        expr: up{job="pqc-scheduler"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PQC Scheduler is down"
+          description: "The PQC Scheduler instance is not responding"
+
+  - name: pqc_security_alerts
+    rules:
+      # Security level monitoring
+      - alert: LowSecurityLevel
+        expr: pqc_scheduler_avg_security_bits < 128
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low average security level"
+          description: "Average security is {{ $value }} bits"
+
+      # Threat level monitoring
+      - alert: ElevatedThreatLevel
+        expr: pqc_scheduler_threat_level > 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated threat level detected"
+          description: "Threat level is {{ $value }}"
+
+      - alert: CriticalThreatLevel
+        expr: pqc_scheduler_threat_level > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical threat level"
+          description: "Threat level is {{ $value }}, consider escalating to PQC-only mode"
